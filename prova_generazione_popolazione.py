@@ -12,11 +12,15 @@ graph = ox.load_graphml(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\gr
 node_colors = [
     "red" if data.get("amenity") == "charging_station" else "blue"
     for _, data in graph.nodes(data=True)
+
+
 ]
 
 # Coordinate di partenza e arrivo
 napoli_coords = (40.4264, 14.3864)
 salerno_coords = (40.0459,15.5357)
+print("Napoli:", napoli_coords)
+
 
 # Trova i nodi più vicini alle coordinate
 napoli_node = ox.distance.nearest_nodes(graph, X=napoli_coords[1], Y=napoli_coords[0])
