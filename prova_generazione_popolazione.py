@@ -13,15 +13,7 @@ node_colors = [
     "red" if data.get("amenity") == "charging_station" else "blue"
     for _, data in graph.nodes(data=True)]
 
-# Coordinate di partenza e arrivo
-napoli_coords = (40.4264, 14.3864)
-salerno_coords = (40.0459,15.5357)
-print("Napoli:", napoli_coords)
 
-
-# Trova i nodi più vicini alle coordinate
-napoli_node = ox.distance.nearest_nodes(graph, X=napoli_coords[1], Y=napoli_coords[0])
-salerno_node = ox.distance.nearest_nodes(graph, X=salerno_coords[1], Y=salerno_coords[0])
 
 # Funzione per processare gli archi con costi
 def process_edges_with_costs(graph):
@@ -346,6 +338,14 @@ def roulette_wheel_selection(population, fitness_values, num_selected):
 
 # Esempio di utilizzo
 def main():
+    # Coordinate di partenza e arrivo
+    napoli_coords = (40.8522, 14.2681)  
+    salerno_coords = (40.6829, 14.7682)  
+
+
+# Trova i nodi più vicini alle coordinate
+    napoli_node = ox.distance.nearest_nodes(graph, X=napoli_coords[1], Y=napoli_coords[0])
+    salerno_node = ox.distance.nearest_nodes(graph, X=salerno_coords[1], Y=salerno_coords[0])
     start_node = napoli_node  # Nodo di partenza
     end_node = salerno_node  # Nodo di destinazione
 
