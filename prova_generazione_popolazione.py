@@ -259,38 +259,45 @@ def calculate_fitness(graph, path,ricariche):
 import random
 import networkx as nx
 
-def crossover_onepoint(parent1, parent2, graph):
+import random
+import networkx as nx
+
+def crossover_onepoint_with_validation(parent1, parent2, graph, autonomia, battery_threshold):
     '''
-    Esegue il crossover one-point tra due genitori per generare 2 figli.
+    Esegue il crossover one-point tra due genitori per generare 2 figli e verifica la validità dei figli.
     Il punto di crossover è scelto in modo che sia un nodo esistente e comune tra i due genitori nel grafo.
     '''
     while True:
         # Scegli un punto di crossover casuale
-        crossover_point = random.randint(1, min(len(parent1), len(parent2)) - 1)
-
-        # Trova il nodo di crossover nel primo genitore (considerando che può essere una tupla con il percorso in posizione 0)
-        node_from_parent1 = parent1[crossover_point][0] if isinstance(parent1[crossover_point], tuple) else parent1[crossover_point]
-        
-        # Verifica che il nodo sia presente nel secondo genitore e nel grafo
-        if node_from_parent1 not in parent2 :  # parent2 è una tupla, quindi il percorso è in posizione 0
-            continue
-        elif node_from_parent1 not in graph.nodes:
+        crossover_point = random.randint(1, min(len(parent1[0]), len(parent2[0])) - 1)
+        print(f"Punto di crossover scelto: {crossover_point}")
+        node_from_parent1 = parent1[0][crossover_point]
+    
+        print(f"Nodo di crossover dal primo genitore: {node_from_parent1}")
+        if node_from_parent1 not in parent2[0]:
+            print(f"Nodo {node_from_parent1} non trovato nel secondo genitore, riprova...")
             continue
         else:
-            # Trova l'indice del nodo di crossover nel secondo genitore (considerando che parent2 è una tupla)
-            crossover_point_parent2 = parent2.index(node_from_parent1)
+            # Trova l'indice del nodo di crossover nel secondo genitore
+            crossover_point_parent2 = parent2[0].index(node_from_parent1)
+            print(f"Indice del nodo di crossover nel secondo genitore: {crossover_point_parent2}")
+            # Esegui il crossover
+            child1_path = parent1[0][:crossover_point] + parent2[0][crossover_point_parent2:]
+            child2_path = parent2[0][:crossover_point_parent2] + parent1[0][crossover_point:]
+            print(f"Figlio 1 generato: {child1_path}")
+            print(f"Figlio 2 generato: {child2_path}")
             
-            # Verifica che ci sia un percorso valido tra i due nodi
-            if nx.has_path(graph, parent1[crossover_point - 1], parent2[crossover_point_parent2]):
-                print(f"Trovato punto di crossover valido: {node_from_parent1}")
-                break
-    
-    # Esegui il crossover tra i due genitori
-    child1 = parent1[:crossover_point] + parent2[crossover_point_parent2:]
-    child2 = parent2[:crossover_point_parent2] + parent1[crossover_point:]
-    
-    return child1, child2
-
+            # Verifica la validità dei figli sull'intero percorso
+            #dict ricariche dei 2 genitori
+            ricariche1=parent1[1]
+            ricariche2=parent2[1]
+            if is_valid_path(graph, child1_path, autonomia,ricariche1,ricariche2, battery_threshold) and is_valid_path(graph, child2_path, autonomia, ricariche1,ricariche2,battery_threshold):
+                # Calcola la fitness dei figli
+                
+                return child1_path, child2_path
+            else:
+                print("Figli non validi, riprova il crossover...") 
+                continue
 
 
 import osmnx as ox
@@ -369,7 +376,32 @@ def roulette_wheel_selection(population, fitness_values, num_selected):
 
 
     return selected_individuals
-    
+
+def is_valid_path(graph, path, autonomia, ricarica1,ricarica2,battery_threshold):
+        """
+        Verifica se un percorso è valido in termini di batteria.
+        
+        :param graph: Il grafo che rappresenta il sistema stradale.
+        :param path: Il percorso da verificare.
+        :param autonomia: Autonomia massima del veicolo (in unità di distanza).
+        :param battery_threshold: Soglia di batteria minima per cercare una stazione di ricarica.
+        :return: True se il percorso è valido, False altrimenti.
+        """
+        battery_level = autonomia
+        for i in range(len(path) - 1):
+            u = path[i]
+            v = path[i + 1]
+            energy_cost = graph[u][v][0].get('energy_cost')
+            battery_level -= energy_cost
+            print(f"Verifica percorso: Da {u} a {v}, Consumo: {energy_cost}, Batteria residua: {battery_level}")
+            if battery_level < 0:
+                print("Percorso non valido: batteria esaurita")
+                return False
+            if battery_level < battery_threshold and graph.nodes[v].get("amenity") == "charging_station" and (ricarica1.get(v,0)+ricarica2.get(v,0))>=0 :
+                battery_level = autonomia  # Ricarica la batteria
+                print(f"Ricarica a stazione: {v}, Batteria ricaricata a: {battery_level}")
+        return True
+
 
 
 
@@ -415,25 +447,26 @@ def main():
 
     # Seleziona i migliori individui
     selected_individuals = roulette_wheel_selection(population, fitness_values, 2)
-    i=0
-    for individual in selected_individuals:
+    for i, individual in enumerate(selected_individuals):
         print(f"Individuo{i} selezionato: {individual}")
-        i+=1
 
     # Visualizza i percorsi selezionati
     #for path,ricariche in selected_individuals:
      #   plot_best_path(graph, path)
     #rimuovere i dict ricariche in selected_individuals
-    selected_individuals=[path for path,_ in selected_individuals]
     # Esegui il crossover one-point
 
-    child1, child2 = crossover_onepoint(selected_individuals[0], selected_individuals[1],graph)
+    child1, child2 = crossover_onepoint_with_validation(selected_individuals[0], selected_individuals[1], graph, autonomia, 5)
     print(f"Figlio 1: {child1}")
     print(f"Figlio 2: {child2}")
-    for path in selected_individuals:
-       plot_best_path(graph, path)
+    for path, _ in selected_individuals:
+        plot_best_path(graph, path)
     plot_best_path(graph, child1)
     plot_best_path(graph, child2)
+    lista_child=[child1,child2]
+    fitness_values = [calculate_fitness(graph, path, ricariche) for path in lista_child for _, ricariche in population]
+    for i, fitness in enumerate(fitness_values):
+        print(f"figlio {i}: Fitness = {fitness}")
     
     
 
