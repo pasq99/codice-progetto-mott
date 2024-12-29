@@ -11,10 +11,7 @@ graph = ox.load_graphml(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\gr
 # Visualizza il grafo con i nodi delle colonnine evidenziati in rosso
 node_colors = [
     "red" if data.get("amenity") == "charging_station" else "blue"
-    for _, data in graph.nodes(data=True)
-
-
-]
+    for _, data in graph.nodes(data=True)]
 
 # Coordinate di partenza e arrivo
 napoli_coords = (40.4264, 14.3864)
