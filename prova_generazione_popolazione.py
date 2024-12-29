@@ -256,6 +256,43 @@ def calculate_fitness(graph, path,ricariche):
                 print("stazione di ricarica non usata")
     return travel_time
                 
+import random
+import networkx as nx
+
+def crossover_onepoint(parent1, parent2, graph):
+    '''
+    Esegue il crossover one-point tra due genitori per generare 2 figli.
+    Il punto di crossover è scelto in modo che sia un nodo esistente e comune tra i due genitori nel grafo.
+    '''
+    while True:
+        # Scegli un punto di crossover casuale
+        crossover_point = random.randint(1, min(len(parent1), len(parent2)) - 1)
+
+        # Trova il nodo di crossover nel primo genitore (considerando che può essere una tupla con il percorso in posizione 0)
+        node_from_parent1 = parent1[crossover_point][0] if isinstance(parent1[crossover_point], tuple) else parent1[crossover_point]
+        
+        # Verifica che il nodo sia presente nel secondo genitore e nel grafo
+        if node_from_parent1 not in parent2 :  # parent2 è una tupla, quindi il percorso è in posizione 0
+            continue
+        elif node_from_parent1 not in graph.nodes:
+            continue
+        else:
+            # Trova l'indice del nodo di crossover nel secondo genitore (considerando che parent2 è una tupla)
+            crossover_point_parent2 = parent2.index(node_from_parent1)
+            
+            # Verifica che ci sia un percorso valido tra i due nodi
+            if nx.has_path(graph, parent1[crossover_point - 1], parent2[crossover_point_parent2]):
+                print(f"Trovato punto di crossover valido: {node_from_parent1}")
+                break
+    
+    # Esegui il crossover tra i due genitori
+    child1 = parent1[:crossover_point] + parent2[crossover_point_parent2:]
+    child2 = parent2[:crossover_point_parent2] + parent1[crossover_point:]
+    
+    return child1, child2
+
+
+
 import osmnx as ox
 import matplotlib.pyplot as plt
 
@@ -384,8 +421,24 @@ def main():
         i+=1
 
     # Visualizza i percorsi selezionati
-    for path,ricariche in selected_individuals:
-        plot_best_path(graph, path)
+    #for path,ricariche in selected_individuals:
+     #   plot_best_path(graph, path)
+    #rimuovere i dict ricariche in selected_individuals
+    selected_individuals=[path for path,_ in selected_individuals]
+    # Esegui il crossover one-point
+
+    child1, child2 = crossover_onepoint(selected_individuals[0], selected_individuals[1],graph)
+    print(f"Figlio 1: {child1}")
+    print(f"Figlio 2: {child2}")
+    for path in selected_individuals:
+       plot_best_path(graph, path)
+    plot_best_path(graph, child1)
+    plot_best_path(graph, child2)
+    
+    
+
+
+
 
 if __name__ == "__main__":
     main()
