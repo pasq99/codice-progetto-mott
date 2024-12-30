@@ -459,11 +459,15 @@ def main():
     print(f"Figlio 1: {child1}")
     print(f"Figlio 2: {child2}")
     for path, _ in selected_individuals:
+        print("stampa indivui selezionati")
         plot_best_path(graph, path)
+    print("stampa figlio 1")
     plot_best_path(graph, child1)
+    print("stampa figlio 2")
     plot_best_path(graph, child2)
+    print("fitness figli")
     lista_child=[child1,child2]
-    fitness_values = [calculate_fitness(graph, path, ricariche) for path in lista_child for _, ricariche in population]
+    fitness_values = [calculate_fitness(graph, path, selected_individuals[i][1]) for i, path in enumerate(lista_child)]
     for i, fitness in enumerate(fitness_values):
         print(f"figlio {i}: Fitness = {fitness}")
     
