@@ -377,6 +377,69 @@ def roulette_wheel_selection(population, fitness_values, num_selected):
 
     return selected_individuals
 
+def mutate_path(path, graph, mutation_rate,ricariche):
+    max_attempts = 10  # Limita il numero di tentativi di mutazione
+    attempts = 0
+
+    while attempts < max_attempts:
+        if random.random() < mutation_rate:
+            # Scegli due indici casuali per il segmento da sostituire
+            i = random.randint(1, len(path) - 2)
+            j = min(len(path) - 1, i + int(mutation_rate * len(path)))
+            print(f"Mutazione: Sostituzione del segmento da {i} a {j}")
+
+            # Verifica se ci sono stazioni di ricarica nel segmento originale
+            original_segment = path[i:j+1]
+            charging_stations_in_segment = [node for node in original_segment if graph.nodes[node].get("amenity") == "charging_station" and (ricariche.get(node,0))>=1]
+
+            
+                    
+            
+            '''
+                # Calcola il percorso più breve tra i nodi da preservare
+                current_sub_node = nodes_to_preserve[0]
+                for next_sub_node in nodes_to_preserve[1:]:
+                    try:
+                        
+                        segment = nx.shortest_path(graph, source=current_sub_node, target=next_sub_node, weight='travel_time')
+                        sub_path.extend(segment[:-1])  # Aggiungi il segmento al percorso sostitutivo
+                        current_sub_node = next_sub_node
+                    except nx.NetworkXNoPath:
+                        print(f"Nessun percorso trovato tra {current_sub_node} e {next_sub_node}, mutazione fallita.")
+                        break
+                sub_path.append(nodes_to_preserve[-1])  # Aggiungi l'ultimo nodo
+
+                # Sostituisci il segmento nel percorso originale
+                new_path = path[:i] + sub_path + path[j+1:]
+
+                # Verifica la validità del percorso mutato
+                if is_valid_path(graph, new_path, autonomia, battery_threshold):
+                    return new_path
+                else:
+                    print("Percorso mutato non valido, riprova...")
+            else:
+                # Trova il percorso più breve tra i due nodi selezionati
+                try:
+                    sub_path = nx.shortest_path(graph, source=path[i], target=path[j], weight='travel_time')
+                    print(f"Percorso sostitutivo trovato: {sub_path}")
+
+                    # Sostituisci il segmento nel percorso originale
+                    new_path = path[:i] + sub_path + path[j+1:]
+
+                    # Verifica la validità del percorso mutato
+                    if is_valid_path(graph, new_path, autonomia, battery_threshold):
+                        return new_path
+                    else:
+                        print("Percorso mutato non valido, riprova...")
+                except nx.NetworkXNoPath:
+                    print("Nessun percorso trovato tra i nodi selezionati, mutazione fallita.")
+        
+        attempts += 1
+    
+    return path
+   '''
+
+
 def is_valid_path(graph, path, autonomia, ricarica1,ricarica2,battery_threshold):
         """
         Verifica se un percorso è valido in termini di batteria.
@@ -472,6 +535,7 @@ def main():
         print(f"figlio {i}: Fitness = {fitness}")
     
     
+
 
 
 
