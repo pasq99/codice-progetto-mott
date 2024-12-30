@@ -360,8 +360,8 @@ def roulette_wheel_selection(population, fitness_values, num_selected):
     
     # Selezionare gli individui in base alle probabilità cumulative
     selected_individuals = []
+    selected_set = set()
     for _ in range(num_selected):
-     selected_set = set()
      while True:  # Ciclo per cercare un individuo non ancora selezionato
             r = random.random()  # Genera un numero casuale tra 0 e 1
             for i, cp in enumerate(cumulative_probabilities):
@@ -437,8 +437,8 @@ def main():
         print(f"Numero di stazioni di ricarica nel percorso: {count_charging_stations(graph, path)}")
 
     #visualizza tutti i percorsi
-    #for path,_ in population:
-    #   plot_best_path(graph, path)
+    for path,_ in population:
+      plot_best_path(graph, path)
 
     # Calcola il fitness di ogni individuo
     fitness_values = [calculate_fitness(graph, path,ricariche) for path,ricariche in population]
@@ -451,10 +451,9 @@ def main():
         print(f"Individuo{i} selezionato: {individual}")
 
     # Visualizza i percorsi selezionati
-    #for path,ricariche in selected_individuals:
-     #   plot_best_path(graph, path)
-    #rimuovere i dict ricariche in selected_individuals
-    # Esegui il crossover one-point
+    for path,ricariche in selected_individuals:
+        plot_best_path(graph, path)
+    
 
     child1, child2 = crossover_onepoint_with_validation(selected_individuals[0], selected_individuals[1], graph, autonomia, 5)
     print(f"Figlio 1: {child1}")
