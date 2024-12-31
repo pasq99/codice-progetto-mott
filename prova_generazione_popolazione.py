@@ -246,6 +246,7 @@ def calculate_fitness(graph, path,ricariche):
     for i in range(len(path) - 1):
         u = path[i]
         v = path[i + 1]
+        #print(f"Da {u} a {v}")
         travel_time += graph[u][v][0].get('travel_time')
         if graph.nodes[v].get("amenity") == "charging_station":
             if ricariche.get(v, 0) >= 1:
@@ -291,12 +292,16 @@ def crossover_onepoint_with_validation(parent1, parent2, graph, autonomia, batte
             #dict ricariche dei 2 genitori
             ricariche1=parent1[1]
             ricariche2=parent2[1]
-            if is_valid_path(graph, child1_path, autonomia,ricariche1,ricariche2, battery_threshold) and is_valid_path(graph, child2_path, autonomia, ricariche1,ricariche2,battery_threshold):
+            validpath1,_=is_valid_path(graph, child1_path, autonomia,ricariche1,ricariche2, battery_threshold)
+            validpath2,_=is_valid_path(graph, child2_path, autonomia,ricariche1,ricariche2, battery_threshold)
+            if validpath1 and validpath2:
                 # Calcola la fitness dei figli
                 
                 return child1_path, child2_path
             else:
                 print("Figli non validi, riprova il crossover...") 
+                #mutuazione dei figli non validi
+
                 continue
 
 
@@ -377,68 +382,163 @@ def roulette_wheel_selection(population, fitness_values, num_selected):
 
     return selected_individuals
 
-def mutate_path(path, graph, mutation_rate,ricariche):
-    max_attempts = 10  # Limita il numero di tentativi di mutazione
-    attempts = 0
+def mutate_path(path, graph, mutation_rate, autonomia, battery_threshold,ricariche1,ricariche2):
 
-    while attempts < max_attempts:
-        if random.random() < mutation_rate:
-            # Scegli due indici casuali per il segmento da sostituire
-            i = random.randint(1, len(path) - 2)
-            j = min(len(path) - 1, i + int(mutation_rate * len(path)))
-            print(f"Mutazione: Sostituzione del segmento da {i} a {j}")
+    n_cambiamenti = 0
+   
 
-            # Verifica se ci sono stazioni di ricarica nel segmento originale
-            original_segment = path[i:j+1]
-            charging_stations_in_segment = [node for node in original_segment if graph.nodes[node].get("amenity") == "charging_station" and (ricariche.get(node,0))>=1]
+    while n_cambiamenti < mutation_rate:
+        # Scegli un nodo casuale da cambiare
+        node_to_change = random.choice(path)
+        # Scegli un altro nodo casuale nel path
+        node_to_change_with = random.choice(path)
+        while node_to_change_with == node_to_change or node_to_change > node_to_change_with:
+            node_to_change_with = random.choice(path)
 
-            
-                    
-            
-            '''
-                # Calcola il percorso più breve tra i nodi da preservare
-                current_sub_node = nodes_to_preserve[0]
-                for next_sub_node in nodes_to_preserve[1:]:
-                    try:
-                        
-                        segment = nx.shortest_path(graph, source=current_sub_node, target=next_sub_node, weight='travel_time')
-                        sub_path.extend(segment[:-1])  # Aggiungi il segmento al percorso sostitutivo
-                        current_sub_node = next_sub_node
-                    except nx.NetworkXNoPath:
-                        print(f"Nessun percorso trovato tra {current_sub_node} e {next_sub_node}, mutazione fallita.")
-                        break
-                sub_path.append(nodes_to_preserve[-1])  # Aggiungi l'ultimo nodo
+        # Trova gli indici dei nodi da cambiare
+        index_to_change = path.index(node_to_change)
+        index_to_change_with = path.index(node_to_change_with)
 
-                # Sostituisci il segmento nel percorso originale
-                new_path = path[:i] + sub_path + path[j+1:]
+        # Calcola il percorso più breve tra i due nodi
+        shortest_path = nx.shortest_path(graph, source=node_to_change, target=node_to_change_with, weight='travel_time')
 
-                # Verifica la validità del percorso mutato
-                if is_valid_path(graph, new_path, autonomia, battery_threshold):
-                    return new_path
-                else:
-                    print("Percorso mutato non valido, riprova...")
-            else:
-                # Trova il percorso più breve tra i due nodi selezionati
-                try:
-                    sub_path = nx.shortest_path(graph, source=path[i], target=path[j], weight='travel_time')
-                    print(f"Percorso sostitutivo trovato: {sub_path}")
+        # Controlla se il percorso più breve coincide già con il percorso attuale
+        if shortest_path == path[index_to_change:index_to_change_with + 1]:
+            print("Il percorso più breve già coincide con il percorso in 'path'")
+            continue
 
-                    # Sostituisci il segmento nel percorso originale
-                    new_path = path[:i] + sub_path + path[j+1:]
+        # Valida la porzione di percorso mutata
+        nuovo_path, ricariche = is_valid_path1(
+            graph, path, autonomia, battery_threshold, 
+            index_to_change, index_to_change_with, 
+            ricariche1, ricariche2
+        )
 
-                    # Verifica la validità del percorso mutato
-                    if is_valid_path(graph, new_path, autonomia, battery_threshold):
-                        return new_path
-                    else:
-                        print("Percorso mutato non valido, riprova...")
-                except nx.NetworkXNoPath:
-                    print("Nessun percorso trovato tra i nodi selezionati, mutazione fallita.")
+        # Se il percorso non è valido, salta questa mutazione
+        if nuovo_path is None:
+            print("La porzione mutata non è valida, si salta questa mutazione")
+            continue
+
+        # Applica il percorso mutato al path principale
+        path[index_to_change:index_to_change_with + 1] = nuovo_path
         
-        attempts += 1
-    
-    return path
-   '''
+            
+        n_cambiamenti += 1
 
+    return path,ricariche
+
+
+
+
+def is_valid_path1(graph, path, autonomia, battery_threshold,index1,index2,ricariche1,ricariche2):
+        """
+        Verifica se un percorso è valido in termini di batteria.
+       
+        :param graph: Il grafo che rappresenta il sistema stradale.
+        :param path: Il percorso da verificare.
+        :param autonomia: Autonomia massima del veicolo (in unità di distanza).
+        :param battery_threshold: Soglia di batteria minima per cercare una stazione di ricarica.
+        :return: True se il percorso è valido, False altrimenti.
+        """
+        battery_level = autonomia
+        ricariche={}     
+        charging_stations = [
+        n for n in graph.nodes if graph.nodes[n].get("amenity") == "charging_station"
+    ]     
+        _,battery_level=is_valid_path(graph, path[:index1+1], autonomia,ricariche1,ricariche2,battery_threshold)
+        nuovo_path=[]
+        path=path[index1:index2+1]
+        for i in range(len(path) - 1):
+
+            u = path[i]
+            v = path[i + 1]
+            nuovo_path.append(u)
+            if i== len(path)-2:
+                nuovo_path.append(v)
+            if graph.has_edge(u, v):
+                energy_cost = graph[u][v][0].get('energy_cost')
+                battery_level -= energy_cost
+            else:
+                print(f"Arco mancante tra {u} e {v}")
+                #crea un percorso tra i due nodi
+                sub_path = nx.shortest_path(graph, source=u, target=v, weight='travel_time')
+                for i in range(1, len(sub_path)):
+                    
+                    previous_node = sub_path[i - 1]
+                    current_node = sub_path[i]
+                    energy_cost = graph[previous_node][current_node][0].get('energy_cost')
+                    travel_time = graph[previous_node][current_node][0].get('length') / 1000
+                    print(f"Da {previous_node} a {current_node}: Consumo {energy_cost} kWh, batteria residua: {battery_level}")
+
+                    battery_level -= energy_cost
+
+                    if battery_level < 0:
+                        print("Batteria insufficiente per raggiungere la stazione di ricarica!")
+                        print(battery_level)
+                        return None
+                    else:
+                        # inserisci la stazione di ricarica nel percorso all'indice corretto del path
+                        nuovo_path.append(current_node)
+                        print(f"Avanzamento verso stazione: {current_node}, batteria residua: {battery_level}")
+                
+            print(f"Verifica percorso: Da {u} a {v}, Consumo: {energy_cost}, Batteria residua: {battery_level}")
+            if battery_level <= 0:
+                print("Percorso non valido: batteria esaurita")
+                return None
+
+            if battery_level >= battery_threshold:
+                print(f"Aggiunto nodo {v} al percorso")
+            else:
+                print(f"Batteria bassa! ({battery_level}/{autonomia}) - Cerco stazione di ricarica...")
+                nearest_station = find_nearest_charging_station(graph, v, charging_stations)
+                ricariche[nearest_station] = ricariche.get(nearest_station, 0)
+                while nearest_station in path:
+                    print("Stazione di ricarica già presente nel percorso! Cerco un'altra stazione...")
+                    charging_stations.remove(nearest_station)
+                    nearest_station = find_nearest_charging_station(graph, v, charging_stations)
+
+                if nearest_station:
+                    # Trova il percorso verso la stazione di ricarica
+                    sub_path = nx.shortest_path(graph, source=v, target=nearest_station, weight='travel_time')
+
+                    for i in range(1, len(sub_path)):
+                        previous_node = sub_path[i - 1]
+                        current_node = sub_path[i]
+                        energy_cost = graph[previous_node][current_node][0].get('energy_cost')
+                        travel_time = graph[previous_node][current_node][0].get('length') / 1000
+                        print(f"Da {previous_node} a {current_node}: Consumo {energy_cost} kWh, batteria residua: {battery_level}")
+
+                        battery_level -= energy_cost
+
+                        if battery_level < 0:
+                            print("Batteria insufficiente per raggiungere la stazione di ricarica!")
+                            print(battery_level)
+                            return None
+                        else:
+                            # inserisci la stazione di ricarica nel percorso all'indice corretto del path
+                            nuovo_path.append(current_node)
+                            print(f"Avanzamento verso stazione: {current_node}, batteria residua: {battery_level}")
+                else:
+                    print("Nessuna stazione di ricarica trovata nelle vicinanze!")
+                    return None
+
+                # Ricarica la batteria una volta raggiunta la stazione
+                print(f"Raggiunta stazione di ricarica: {nearest_station}. Batteria ricaricata.")
+                # flag per ricarica da aggiungere al nodo ricarica se usato
+                ricariche[nearest_station] = ricariche.get(nearest_station, 0) + 1
+
+
+                battery_level = autonomia
+        #unisci le ricariche dei due genitori tranne tra index1 e index2
+        for key in ricariche1.keys():
+            if ricariche1[key] >= 1:
+             ricariche[key] = ricariche.get(key, 0) + ricariche1[key]
+        for key in ricariche2.keys():
+            if ricariche2[key] >= 1:
+             ricariche[key] = ricariche.get(key, 0) + ricariche2[key]
+               
+        return nuovo_path,ricariche
+                
 
 def is_valid_path(graph, path, autonomia, ricarica1,ricarica2,battery_threshold):
         """
@@ -454,17 +554,42 @@ def is_valid_path(graph, path, autonomia, ricarica1,ricarica2,battery_threshold)
         for i in range(len(path) - 1):
             u = path[i]
             v = path[i + 1]
-            energy_cost = graph[u][v][0].get('energy_cost')
-            battery_level -= energy_cost
+            if i== len(path)-2:
+                print("ultimo nodo")
+                print(u)
+                print(v)
+            if graph.has_edge(u, v):
+
+                 energy_cost = graph[u][v][0].get('energy_cost')
+                 battery_level -= energy_cost
+            else:
+
+                print(f"Arco mancante tra {u} e {v}")
+                #crea un percorso tra i due nodi
+                sub_path = nx.shortest_path(graph, source=u, target=v, weight='travel_time')
+                for i in range(1, len(sub_path)):
+                    previous_node = sub_path[i - 1]
+                    current_node = sub_path[i]
+                    energy_cost = graph[previous_node][current_node][0].get('energy_cost')
+                    travel_time = graph[previous_node][current_node][0].get('length') / 1000
+                    print(f"Da {previous_node} a {current_node}: Consumo {energy_cost} kWh, batteria residua: {battery_level}")
+
+                    battery_level -= energy_cost
+
+                    if battery_level < 0:
+                        print("Batteria insufficiente per raggiungere la stazione di ricarica!")
+                        print(battery_level)
+                        return False, battery_level
+                    else:
+                        print(f"Avanzamento verso stazione: {current_node}, batteria residua: {battery_level}")
             print(f"Verifica percorso: Da {u} a {v}, Consumo: {energy_cost}, Batteria residua: {battery_level}")
             if battery_level < 0:
                 print("Percorso non valido: batteria esaurita")
-                return False
+                return False, battery_level
             if battery_level < battery_threshold and graph.nodes[v].get("amenity") == "charging_station" and (ricarica1.get(v,0)+ricarica2.get(v,0))>=0 :
                 battery_level = autonomia  # Ricarica la batteria
                 print(f"Ricarica a stazione: {v}, Batteria ricaricata a: {battery_level}")
-        return True
-
+        return True, battery_level
 
 
 
@@ -500,8 +625,11 @@ def main():
         print(f"Numero di stazioni di ricarica nel percorso: {count_charging_stations(graph, path)}")
 
     #visualizza tutti i percorsi
+    '''
     for path,_ in population:
       plot_best_path(graph, path)
+      '''
+      
 
     # Calcola il fitness di ogni individuo
     fitness_values = [calculate_fitness(graph, path,ricariche) for path,ricariche in population]
@@ -512,15 +640,23 @@ def main():
     selected_individuals = roulette_wheel_selection(population, fitness_values, 2)
     for i, individual in enumerate(selected_individuals):
         print(f"Individuo{i} selezionato: {individual}")
+    if len(selected_individuals)==0:
+        print("nessun individuo selezionato")
+        return 0
+    elif len(selected_individuals)==1:
+        print("un solo individuo selezionato")
+        return 0
 
     # Visualizza i percorsi selezionati
+    '''
     for path,ricariche in selected_individuals:
         plot_best_path(graph, path)
-    
+    '''
 
     child1, child2 = crossover_onepoint_with_validation(selected_individuals[0], selected_individuals[1], graph, autonomia, 5)
     print(f"Figlio 1: {child1}")
     print(f"Figlio 2: {child2}")
+    '''
     for path, _ in selected_individuals:
         print("stampa indivui selezionati")
         plot_best_path(graph, path)
@@ -528,16 +664,52 @@ def main():
     plot_best_path(graph, child1)
     print("stampa figlio 2")
     plot_best_path(graph, child2)
+    '''
     print("fitness figli")
     lista_child=[child1,child2]
+    lista_child_mutated=[]
     fitness_values = [calculate_fitness(graph, path, selected_individuals[i][1]) for i, path in enumerate(lista_child)]
     for i, fitness in enumerate(fitness_values):
         print(f"figlio {i}: Fitness = {fitness}")
+    # Mutazione di tutti i figli
+    mutation_rate = 3
+    ricariche_list = []
+    for i, child in enumerate(lista_child):
+        mutated_child,ricariche = mutate_path(child, graph, mutation_rate, autonomia, 5,selected_individuals[0][1],selected_individuals[1][1])
+        lista_child_mutated.append(mutated_child)
+        ricariche_list.append(ricariche)
+    #print("fitness figli mutati")
+    #fitness_values1 = [calculate_fitness(graph, path, ricariche) for path,ricariche in zip(lista_child_mutated,ricariche_list)]
+    #plot dei figli mutati
+    '''
+    for i, path in enumerate(lista_child):
+        print(f"Figlio {i}: Fitness = {fitness_values[i]}")
+        plot_best_path(graph, path)
+    '''
+    #stampa figli non mutati
+    for i, path in enumerate(lista_child):
+        print("figli non mutati")
+        print(f"Figlio {i}: {path}")
+        print(f"Figlio {i}: Fitness = {fitness_values[i]}")
+        plot_best_path(graph, path)
     
     
+#fitness dei figli mutati
 
+#controlla che i figli mutati siano validi
 
+    for i, path in enumerate(lista_child_mutated):
+        print("figli mutati")
+        print(f"Figlio {i}: {path}")
+        #controlla che il path sia connesso
+        if nx.has_path(graph,path[0],path[-1]):
+            print("path connesso")
+            fitness=calculate_fitness(graph, path, ricariche_list[i])
+            print(f"Fitness: {fitness}")
+            plot_best_path(graph, path)
 
+        else:
+            print("path non connesso")
 
 
 if __name__ == "__main__":
