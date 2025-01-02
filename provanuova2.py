@@ -426,7 +426,110 @@ def mutuation(graph, path, autonomia, battery_threshold):
     return extended_path, ricariche
 
 
+def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations,arrest_critery):
+    '''
+    Implementa l'algoritmo genetico per risolvere il problema del percorso più breve con stazioni di ricarica.
+    '''
+    # Genera la popolazione iniziale
+    population,population_effective_size = generate_population(graph, start_node, end_node, autonomia, battery_threshold, population_size)
+    print(f"Popolazione iniziale generata: {population}")
+    
+    # Calcola il fitness di ogni individuo
+    fitness_values = [calculate_fitness(graph,path,ricariche) for path,ricariche in population]
+    print(f"Fitness iniziali: {fitness_values}")
+    # Itera per un numero fisso di generazioni
+    
+    for generation in range(num_generations):
+        print(f"Generazione {generation}")
+        #inizio roulette while
+        # Seleziona i migliori individui
+        num_selezione=population_size//2
 
+        if population_size==1 or population_size==0:
+            print("un solo individuo trovato")
+            return 0
+        else:
+            if num_selezione%2!=0:
+                num_selezione+=1   #seleziona un numero pari di individui per il crossover
+
+          # Seleziona i migliori individui
+        selected_individuals = roulette_wheel_selection(population, fitness_values,num_selezione)
+        for i, individual in enumerate(selected_individuals):
+          print(f"Individuo{i} selezionato: {individual}")
+        if len (selected_individuals)<2:
+         print("individui selezionati <2")
+         return 0
+    #fine roulette wheel
+
+    #lista dei figli vuota
+        children = []
+
+        for i in range(0, len(selected_individuals), 2):
+
+            child1, child2,ricariche1,ricariche2 = crossover_onepoint_with_validation(selected_individuals[i], selected_individuals[i+1], graph, autonomia, battery_threshold)
+            print(f"Figlio 1: {child1}")
+            print(f"Figlio 2: {child2}")
+            if child1 is None or child2 is None:
+             print("Figli non validi, exit")
+            else:
+                children.append(child1)
+                children.append(child2)
+                print(f"fitness figlio {i}: {calculate_fitness(graph, child1,ricariche1)}")
+                print(f"fitness figlio {i+1}: {calculate_fitness(graph, child2,ricariche2)}")
+        print("mutazione")
+        # Mutazione su tutti i figli
+        mutated_children = []
+        ricariche_mutation = [{} for _ in range(len(children))]
+        for child in children:
+            mutated_child,ricariche = mutuation(graph, child, autonomia, battery_threshold)
+        
+
+        if mutated_child:
+            mutated_children.append(mutated_child)
+            ricariche_mutation.append(ricariche)
+        else:
+            print("Mutazione Figlio non valida, exit")
+            
+    #figli mutati
+        for i, child in enumerate(mutated_children):
+            print(f"Figlio mutato {i}: {child}")
+        print("fitness figli mutati")
+        # Calcola il fitness dei figli mutati
+        fitness_values = [calculate_fitness(graph, path, ricariche_mutation[i]) for i, path in enumerate(mutated_children)]
+        for i, fitness in enumerate(fitness_values):
+         print(f"Figlio mutato {i}: Fitness = {fitness}")
+
+        # crea un dizionario con tutti gli individui e i rispettivi fitness come chiave
+        all_individuals = {tuple(path): (calculate_fitness(graph, path, ricariche), ricariche) for path, ricariche in population}
+        all_individuals.update({tuple(path): (calculate_fitness(graph, path, ricariche1), ricariche1) for path, ricariche1 in zip(children, ricariche_mutation)})
+        all_individuals.update({tuple(path): (calculate_fitness(graph, path, ricariche2), ricariche2) for path, ricariche2 in zip(mutated_children, ricariche_mutation)})
+        print("all_individuals")
+    
+        # Ordina gli individui in base al fitness
+        sorted_individuals = sorted(all_individuals.items(), key=lambda x: x[1][0])
+        print("sorted_individuals")
+        print(sorted_individuals)
+        print("popolazione")
+        print(population)  
+
+        population=[(list(path),ricariche) for path, (fitness,ricariche) in sorted_individuals]
+
+
+        # Aggiorna la popolazione con i migliori individui
+        #population=[[path,ricariche] for path, (fitness,ricariche) in sorted_individuals]
+        print("popolazione modificata")
+        print(population)
+        population_size=len(population)
+        fitness_values = [calculate_fitness(graph, path,ricariche) for path,ricariche in population]
+
+    best_path = sorted_individuals[0][0]
+    print(f"Percorso migliore: {best_path}")
+    print(f"Fitness: {sorted_individuals[0][1]}")
+    plot_best_path(graph, best_path)
+    
+    
+
+            
 
 # Funzione per plottare il percorso migliore
 def plot_best_path(graph, best_path):
@@ -527,118 +630,12 @@ def main():
 
     autonomia=10 #kwh
     battery_threshold = 0.2*autonomia  # Soglia minima di batteria
-    population_size = 7  # Dimensione della popolazione
+    population_size = 2  # Dimensione della popolazione
 
-
-    #riempi la popolazione
-    population,population_effective_size = generate_population(graph, start_node, end_node, autonomia, battery_threshold, population_size)
-    print(f"dimensione popolazione: {len(population)}")
-    if len(population)==0:
-        print("nessun percorso trovato")
-        return 0
-
-
-    # Calcola il fitness di ogni individuo
-    fitness_values = [calculate_fitness(graph, path,ricariche) for path,ricariche in population]
-    for i, fitness in enumerate(fitness_values):
-        print(f"Individuo {i}: Fitness = {fitness}")
-    
-    num_selezione=population_effective_size//2
-
-  
-    if population_effective_size==1 or population_effective_size==0:
-            print("un solo individuo trovato")
-            return 0
-    else:
-            if num_selezione%2!=0:
-                num_selezione+=1
-
-
-
-
-    # Seleziona i migliori individui
-    selected_individuals = roulette_wheel_selection(population, fitness_values,num_selezione)
-    for i, individual in enumerate(selected_individuals):
-        print(f"Individuo{i} selezionato: {individual}")
-    if len (selected_individuals)<2:
-        print("individui selezionati <2")
-        return 0
-
-    #lista dei figli vuota
-    children = []
-
-    for i in range(0, len(selected_individuals), 2):
-
-     child1, child2,ricariche1,ricariche2 = crossover_onepoint_with_validation(selected_individuals[i], selected_individuals[i+1], graph, autonomia, battery_threshold)
-     print(f"Figlio 1: {child1}")
-     print(f"Figlio 2: {child2}")
-     if child1 is None or child2 is None:
-        print("Figli non validi, exit")
-        return 0
-     else:
-        children.append(child1)
-        children.append(child2)
-        print(f"fitness figlio 1: {calculate_fitness(graph, child1,ricariche1)}")
-        print(f"fitness figlio 2: {calculate_fitness(graph, child2,ricariche2)}")
-    '''
-    print("fitness figli")
-    for i, path in enumerate(children):
-        fitness = calculate_fitness(graph, path, selected_individuals[i][1])
-        print(f"Figlio {i}: Fitness = {fitness}")
-    '''
-    
-    
-        
-    print("mutazione")
-    # Mutazione su tutti i figli
-    mutated_children = []
-    ricariche_mutation = [{} for _ in range(len(children))]
-    for child in children:
-        mutated_child,ricariche = mutuation(graph, child, autonomia, battery_threshold)
-        
-
-        if mutated_child:
-            mutated_children.append(mutated_child)
-            ricariche_mutation.append(ricariche)
-        else:
-            print("Mutazione Figlio non valida, exit")
-            
-    #figli mutati
-    for i, child in enumerate(mutated_children):
-        print(f"Figlio mutato {i}: {child}")
-    print("fitness figli mutati")
-    # Calcola il fitness dei figli mutati
-    fitness_values = [calculate_fitness(graph, path, ricariche_mutation[i]) for i, path in enumerate(mutated_children)]
-    for i, fitness in enumerate(fitness_values):
-       print(f"Figlio mutato {i}: Fitness = {fitness}")
-
-    # crea un dizionario con tutti gli individui e i rispettivi fitness come chiave
-    all_individuals = {tuple(path): calculate_fitness(graph, path, ricariche) for path, ricariche in population}
-    all_individuals.update({tuple(path): fitness for path, fitness in zip([tuple(p) for p in children], [calculate_fitness(graph, path, ricariche1) for path, ricariche1 in zip(children, ricariche_mutation)])})
-    all_individuals.update({tuple(path): fitness for path, fitness in zip(mutated_children, [calculate_fitness(graph, tuple(path), ricariche2) for path, ricariche2 in zip(mutated_children, ricariche_mutation)])})
-    print("all_individuals")
-    #associa i path a un indice
-    # Ordina gli individui in base al fitness
-    sorted_individuals = sorted(all_individuals.items(), key=lambda x: x[1])
-    print(sorted_individuals)
-    #estrai il migliore
-    best_path = sorted_individuals[0][0]
-    print(f"Percorso migliore: {best_path}")
-    print(f"Fitness: {sorted_individuals[0][1]}")
-    plot_best_path(graph, best_path)
-    '''
-    #fitness figli non mutati
-    print("fitness figli non mutati")
-    fitness_values = [calculate_fitness(graph, path, selected_individuals[i][1]) for i, path in enumerate(lista_child)]
-    for i, fitness in enumerate(fitness_values):
-        print(f"figlio {i}: Fitness = {fitness}")
-    #grafico figli non mutati
-    for path in lista_child:
-        plot_best_path(graph, path)
-    #grafico figli mutati
-    for path in mutated_children:
-        plot_best_path(graph, path)
-'''
+    num_generations = 3  # Numero di generazioni
+    arrest_critery=0
+    # Esegui l'algoritmo genetico
+    genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations,arrest_critery)
 if __name__ == "__main__":
     main()
 
