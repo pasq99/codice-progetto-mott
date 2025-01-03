@@ -481,24 +481,26 @@ def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold,
         # Mutazione su tutti i figli
         mutated_children = []
         ricariche_mutation = [{} for _ in range(len(children))]
-        for child in children:
+        if children is not None:
+         for child in children:
             mutated_child,ricariche = mutuation(graph, child, autonomia, battery_threshold)
         
 
-        if mutated_child:
-            mutated_children.append(mutated_child)
-            ricariche_mutation.append(ricariche)
-        else:
-            print("Mutazione Figlio non valida, exit")
+            if mutated_child is not None:
+             mutated_children.append(mutated_child)
+             ricariche_mutation.append(ricariche)
+            else:
+             print("Mutazione Figlio non valida, exit")
             
         #figli mutati
-        for i, child in enumerate(mutated_children):
+        if mutated_children is not None:
+         for i, child in enumerate(mutated_children):
             print(f"Figlio mutato {i}: {child}")
-        print("fitness figli mutati")
+         print("fitness figli mutati")
         # Calcola il fitness dei figli mutati
-        fitness_values = [calculate_fitness(graph, path, ricariche_mutation[i]) for i, path in enumerate(mutated_children)]
-        for i, fitness in enumerate(fitness_values):
-         print(f"Figlio mutato {i}: Fitness = {fitness}")
+         fitness_values = [calculate_fitness(graph, path, ricariche_mutation[i]) for i, path in enumerate(mutated_children)]
+         for i, fitness in enumerate(fitness_values):
+          print(f"Figlio mutato {i}: Fitness = {fitness}")
 
         # crea un dizionario con tutti gli individui e i rispettivi fitness come chiave
         all_individuals = {tuple(path): (calculate_fitness(graph, path, ricariche), ricariche) for path, ricariche in population}
@@ -710,7 +712,9 @@ def main():
     arrest_critery = 5 # Numero di generazioni senza miglioramenti per arrestare l'algoritmo
     # Esegui l'algoritmo genetico
     genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations, fitness_threshold, arrest_critery, budget, costo_pedaggio_al_metro)
+
 if __name__ == "__main__":
+
     main()
 
 
