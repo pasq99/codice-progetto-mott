@@ -7,8 +7,8 @@ from geopy.distance import geodesic
 import matplotlib.pyplot as plt
 
 # Leggi grafo e file GeoJSON delle colonnine
-graph = ox.load_graphml(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\grafocampania.graphml")
-charging_stations = gpd.read_file(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\colonninecampania.geojson")
+graph = ox.load_graphml(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\grafocalabria.graphml")
+charging_stations = gpd.read_file(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\colonninecalabria.geojson")
 
 for idx, station in charging_stations.iterrows():
     try:

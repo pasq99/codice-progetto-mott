@@ -42,12 +42,12 @@ def load_graph_roads_and_stations(regions):
     return combined_graph, edges, pois
 
 # Definizione delle regioni
-regions = ["Campania"]
+regions = ["Calabria"]
 
 # Caricamento del grafo, strade e colonnine
 graph, roads, charging_stations = load_graph_roads_and_stations(regions)
 # Salvataggio del grafo in formato GraphML
-ox.save_graphml(graph, r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\grafocampania.graphml")
+ox.save_graphml(graph, r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\grafocalabria.graphml")
 # Salvataggio delle colonnine di ricarica in formato GeoJSON
-charging_stations.to_file(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\colonninecampania.geojson", driver="GeoJSON")
+charging_stations.to_file(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\colonninecalabria.geojson", driver="GeoJSON")
 print("Salvataggio completato!")

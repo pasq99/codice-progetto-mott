@@ -4,7 +4,7 @@ import networkx as nx
 import random
 import geopy.distance
 import matplotlib.pyplot as plt
-
+import time
 
 
 
@@ -293,6 +293,8 @@ def crossover_onepoint_with_validation(parent1, parent2, graph, autonomia, batte
             is_valid2, _ = is_valid_path(graph, child2_path[crossover_point_parent2+1:], autonomia, parent2[1],battery_threshold)
             if is_valid1 and is_valid2:
                 print("Figli validi!")
+                print(f"ricariche1: {ricariche1}")
+                print(f"ricariche2: {ricariche2}")
                 return child1_path, child2_path,ricariche1,ricariche2
             else:
                 print("Figli non validi")
@@ -419,6 +421,8 @@ def mutuation(graph, path, autonomia, battery_threshold):
             #se è l'ultimo nodo del percorso aggiungilo
             if i ==( len(new_path) - 2):
                 extended_path.append(v)
+    
+    print(f"ricariche: {ricariche}")
                 
 
     # Ritorna il percorso aggiornato
@@ -464,38 +468,46 @@ def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold,
 
         #lista dei figli vuota
         children = []
+        ricariche_children = []
 
         for i in range(0, len(selected_individuals), 2):
 
             child1, child2,ricariche1,ricariche2 = crossover_onepoint_with_validation(selected_individuals[i], selected_individuals[i+1], graph, autonomia, battery_threshold)
             print(f"Figlio 1: {child1}")
             print(f"Figlio 2: {child2}")
+            print(f"ricariche1: {ricariche1}")
+            print(f"ricariche2: {ricariche2}")
             if child1 is None or child2 is None:
              print("Figli non validi, exit")
             else:
                 children.append(child1)
                 children.append(child2)
+                ricariche_children.append(ricariche1)
+                ricariche_children.append(ricariche2)
                 print(f"fitness figlio {i}: {calculate_fitness(graph, child1,ricariche1)}")
                 print(f"fitness figlio {i+1}: {calculate_fitness(graph, child2,ricariche2)}")
+                print(f"ricariche figlio {i}: {ricariche1}")
+                print(f"ricariche figlio {i+1}: {ricariche2}")
         print("mutazione")
         # Mutazione su tutti i figli
         mutated_children = []
         ricariche_mutation = [{} for _ in range(len(children))]
         if children is not None:
-         for child in children:
-            mutated_child,ricariche = mutuation(graph, child, autonomia, battery_threshold)
+         for i, child in enumerate(children):
+            mutated_child, ricariche = mutuation(graph, child, autonomia, battery_threshold)
         
-
             if mutated_child is not None:
-             mutated_children.append(mutated_child)
-             ricariche_mutation.append(ricariche)
+                mutated_children.append(mutated_child)
+                ricariche_mutation[i] = ricariche
             else:
-             print("Mutazione Figlio non valida, exit")
+             print("Mutazione Figlio non valida, continuo...")
+             continue
             
         #figli mutati
         if mutated_children is not None:
          for i, child in enumerate(mutated_children):
             print(f"Figlio mutato {i}: {child}")
+            print(f"ricariche mutazione {i}: {ricariche_mutation[i]}")
          print("fitness figli mutati")
         # Calcola il fitness dei figli mutati
          fitness_values = [calculate_fitness(graph, path, ricariche_mutation[i]) for i, path in enumerate(mutated_children)]
@@ -504,7 +516,7 @@ def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold,
 
         # crea un dizionario con tutti gli individui e i rispettivi fitness come chiave
         all_individuals = {tuple(path): (calculate_fitness(graph, path, ricariche), ricariche) for path, ricariche in population}
-        all_individuals.update({tuple(path): (calculate_fitness(graph, path, ricariche1), ricariche1) for path, ricariche1 in zip(children, ricariche_mutation)})
+        all_individuals.update({tuple(path): (calculate_fitness(graph, path, ricariche1), ricariche1) for path, ricariche1 in zip(children, ricariche_children)})
         all_individuals.update({tuple(path): (calculate_fitness(graph, path, ricariche2), ricariche2) for path, ricariche2 in zip(mutated_children, ricariche_mutation)})
         print("all_individuals")
     
@@ -539,13 +551,17 @@ def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold,
                     print(f"Percorso trovato: {sorted_individuals[i][0]}")
                     print(f"Fitness: {sorted_individuals[i][1][0]}")
                     print(f"Costo totale: {total_cost}")
+                    #numero di ricariche in best path
+                    print(f"Numero di ricariche: {sorted_individuals[i][1][1]}")
                     best_path = sorted_individuals[i][0]
-                    plot_best_path(graph, best_path)
+                    best_fitness = sorted_individuals[i][1][0]
+                    
 
-                    return 0
+
+                    return best_fitness, best_path
                 else:
                     print("Nessun percorso trovato che rientra nel budget.")
-                    continue
+                    return 0, None
         else:
             print(f"Continua alla prossima generazione...")
             continue
@@ -558,24 +574,26 @@ def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold,
     # Verifica se il costo totale del pedaggio rientra nel budget
     for i, total_cost in enumerate(total_costs):
         if total_cost <= budget:
-            # percorso migliore
-            #itera e trova il percorso migliore in base alla fitness
-            while True:
-                best_path = sorted_individuals[i][0]
-                best_fitness = sorted_individuals[i][1][0]
-                if best_path:
-                    print(f"Percorso migliore: {best_path}")
-                    print(f"Fitness: {best_fitness}")
-                    print(f"Costo totale: {total_cost}")
-                    plot_best_path(graph, best_path)
-                    return 0
-                else:
-                    print("Nessun percorso trovato che rientra nel budget.")
+            # Find the best path within the budget
+            best_path = sorted_individuals[i][0]
+            best_fitness = sorted_individuals[i][1][0]
+            if best_path:
+                print(f"Percorso migliore: {best_path}")
+                print(f"Fitness: {best_fitness}")
+                print(f"Costo totale: {total_cost}")
+                print(f"Numero di ricariche: {sorted_individuals[i][1][1]}")
+                
+                return best_fitness, best_path
+            else:
+                print("Nessun percorso trovato che rientra nel budget.")
+                continue
 
      
         else:
             print("Nessun percorso trovato che rientra nel budget.")
+            continue
     
+    return 0, None
    
 
 
@@ -606,25 +624,46 @@ def calculate_total_costs(graph, sorted_individuals, costo_pedaggio_al_metro):
 
 # Funzione per plottare il percorso migliore
 def plot_best_path(graph, best_path):
-    # Inizializza la figura
-    fig, ax = ox.plot_graph(graph, node_color='gray', node_size=10, edge_linewidth=1, show=False, close=False)
-    
-    # Per ogni coppia di nodi consecutivi nel percorso
+    # Colora i nodi: rosso per le colonnine di ricarica, blu per gli altri
+    node_colors = [
+        "red" if data.get("amenity") == "charging_station" else "blue" 
+        for _, data in graph.nodes(data=True)
+    ]
+
+    # Disegna il grafo con osmnx
+    fig, ax = ox.plot_graph(
+        graph,
+        node_color=node_colors,  # Usa la lista di colori
+        node_size=20,            # Dimensione dei nodi
+        edge_color="gray",       # Colore degli archi
+        bgcolor="white",         # Sfondo bianco
+        show=False,              # Non mostrare subito il grafico
+        close=False              # Non chiudere la figura
+    )
+
+    # Ottieni le posizioni dei nodi
+    node_positions = {node: (data['x'], data['y']) for node, data in graph.nodes(data=True)}
+
+    # Disegna il percorso
     for i in range(len(best_path) - 1):
         start_node = best_path[i]
         end_node = best_path[i + 1]
-        
-        # Ottieni le coordinate degli archi
-        edge_data = graph.get_edge_data(start_node, end_node)
-        
-        if edge_data:  # Se l'arco esiste
-            # Estrai le coordinate di partenza e arrivo dell'arco
-            start_lat, start_lon = graph.nodes[start_node]['y'], graph.nodes[start_node]['x']
-            end_lat, end_lon = graph.nodes[end_node]['y'], graph.nodes[end_node]['x']
-            
-            # Traccia l'arco effettivo
-            ax.plot([start_lon, end_lon], [start_lat, end_lat], color='red', linewidth=2, marker='o', markersize=5)
-    
+
+        # Controlla se l'arco esiste
+        if graph.has_edge(start_node, end_node):
+            # Ottieni le coordinate dei nodi
+            start_lon, start_lat = graph.nodes[start_node]['x'], graph.nodes[start_node]['y']
+            end_lon, end_lat = graph.nodes[end_node]['x'], graph.nodes[end_node]['y']
+
+            # Disegna l'arco con il percorso migliore
+            ax.plot(
+                [start_lon, end_lon], 
+                [start_lat, end_lat], 
+                color="yellow", 
+                linewidth=5, 
+                alpha=0.8
+            )
+
     # Mostra il grafico
     plt.show()
 
@@ -680,7 +719,7 @@ def roulette_wheel_selection(population, fitness_values, num_selected):
 def main():
     # Coordinate di partenza e arrivo
     # Carica il grafo
-    graph = ox.load_graphml(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\grafo_con_colonnine.graphml")
+    graph = ox.load_graphml(r"C:\Users\pasqu\Desktop\Uni\Magistrale\MOTT\Progetto\grafo_con_colonnine_lombardia.graphml")
 
 # Visualizza il grafo con i nodi delle colonnine evidenziati in rosso
     node_colors = [
@@ -692,26 +731,42 @@ def main():
     process_edges_with_costs(graph)
 
 # Trova i nodi più vicini alle coordinate
-    napoli_coords = (40.8522, 14.2681)  
-    salerno_coords = (40.6829, 14.7682) 
-    napoli_node = ox.distance.nearest_nodes(graph, X=napoli_coords[1], Y=napoli_coords[0])
-    salerno_node = ox.distance.nearest_nodes(graph, X=salerno_coords[1], Y=salerno_coords[0])
-    start_node = napoli_node  # Nodo di partenza
-    end_node = salerno_node  # Nodo di destinazione
+    milano_coords = (45.4641, 9.1919)
+    ponte_di_legno_coords = (46.2511, 10.4656)
+    milano_node = ox.distance.nearest_nodes(graph, X=milano_coords[1], Y=milano_coords[0])
+    ponte_di_legno_node = ox.distance.nearest_nodes(graph, X=ponte_di_legno_coords[1], Y=ponte_di_legno_coords[0])
+    start_node = milano_node  # Nodo di partenza
+    end_node = ponte_di_legno_node  # Nodo di destinazione
     #crea un dizionario vuoto
     
 
     autonomia=10 #kwh
-    battery_threshold = 0.2*autonomia  # Soglia minima di batteria
-    population_size = 5  # Dimensione della popolazione
+    battery_threshold = 0.3*autonomia  # Soglia minima di batteria
+    population_size = 10  # Dimensione della popolazione
     fitness_threshold = 10  # Differenza massima accettata tra due fitness degli individui migliori di due generazioni successive
-    budget=8 # Budget massimo per il viaggio
+    budget=60 # Budget massimo per il viaggio
     costo_pedaggio_al_metro = 0.0001  # Costo pedaggio (€/metro)
 
     num_generations = 10  # Numero di generazioni
     arrest_critery = 5 # Numero di generazioni senza miglioramenti per arrestare l'algoritmo
-    # Esegui l'algoritmo genetico
-    genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations, fitness_threshold, arrest_critery, budget, costo_pedaggio_al_metro)
+    # Esegui l'algoritmo genetico   
+    start_time = time.time() 
+    best_fitness,best_path=genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations, fitness_threshold, arrest_critery, budget, costo_pedaggio_al_metro)
+    print(f"Fitness migliore: {best_fitness}")
+    print(f"Percorso migliore: {best_path}")
+    end_time = time.time()
+    print(f"Tempo di esecuzione: {end_time - start_time} secondi")
+    #lunghezza del percorso
+    total_distance=0
+    for i in range(len(best_path)-1):
+        total_distance+=graph[best_path[i]][best_path[i+1]][0].get('length')
+    print(f"Distanza totale: {total_distance} metri")
+    if best_path:
+        plot_best_path(graph, best_path)
+    else:
+        print("Nessun percorso trovato!")
+    
+    
 
 if __name__ == "__main__":
 
