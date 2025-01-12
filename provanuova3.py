@@ -493,22 +493,21 @@ def genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold,
         mutated_children = []
         ricariche_mutation = [{} for _ in range(len(children))]
         if children is not None:
-         for i, child in enumerate(children):
-            mutated_child, ricariche = mutuation(graph, child, autonomia, battery_threshold)
+         for child in children:
+            mutated_child,ricariche = mutuation(graph, child, autonomia, battery_threshold)
         
-            if mutated_child is not None:
-                mutated_children.append(mutated_child)
-                ricariche_mutation[i] = ricariche
-            else:
-             print("Mutazione Figlio non valida, continuo...")
-             continue
+
+        if mutated_child:
+            mutated_children.append(mutated_child)
+            ricariche_mutation.append(ricariche)
+        else:
+            print("Mutazione Figlio non valida, exit")
             
         #figli mutati
         if mutated_children is not None:
          for i, child in enumerate(mutated_children):
             print(f"Figlio mutato {i}: {child}")
-            print(f"ricariche mutazione {i}: {ricariche_mutation[i]}")
-         print("fitness figli mutati")
+        print("fitness figli mutati")
         # Calcola il fitness dei figli mutati
          fitness_values = [calculate_fitness(graph, path, ricariche_mutation[i]) for i, path in enumerate(mutated_children)]
          for i, fitness in enumerate(fitness_values):
@@ -749,25 +748,8 @@ def main():
 
     num_generations = 10  # Numero di generazioni
     arrest_critery = 5 # Numero di generazioni senza miglioramenti per arrestare l'algoritmo
-    # Esegui l'algoritmo genetico   
-    start_time = time.time() 
-    best_fitness,best_path=genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations, fitness_threshold, arrest_critery, budget, costo_pedaggio_al_metro)
-    print(f"Fitness migliore: {best_fitness}")
-    print(f"Percorso migliore: {best_path}")
-    end_time = time.time()
-    print(f"Tempo di esecuzione: {end_time - start_time} secondi")
-    #lunghezza del percorso
-    total_distance=0
-    for i in range(len(best_path)-1):
-        total_distance+=graph[best_path[i]][best_path[i+1]][0].get('length')
-    print(f"Distanza totale: {total_distance} metri")
-    if best_path:
-        plot_best_path(graph, best_path)
-    else:
-        print("Nessun percorso trovato!")
-    
-    
-
+    # Esegui l'algoritmo genetico
+    genetic_algorithm(graph, start_node, end_node, autonomia, battery_threshold, population_size, num_generations, fitness_threshold, arrest_critery, budget, costo_pedaggio_al_metro)
 if __name__ == "__main__":
 
     main()
